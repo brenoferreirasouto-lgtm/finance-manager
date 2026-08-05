@@ -131,6 +131,9 @@ input:focus-visible,select:focus-visible{outline:none}
 .month-btn{width:26px;height:26px;border-radius:7px;border:none;background:none;color:var(--text-3);display:grid;place-items:center}
 .month-btn:hover{background:var(--hover);color:var(--text)}
 .month-btn svg{width:14px;height:14px}
+.all-btn{height:26px;padding:0 10px;border-radius:7px;border:none;background:none;color:var(--text-3);font-size:11.5px;font-weight:600;letter-spacing:.01em;margin-right:2px}
+.all-btn:hover{background:var(--hover);color:var(--text)}
+.all-btn.active{background:var(--accent);color:#fff}
 #month-label{min-width:128px;text-align:center;font-size:12.5px;font-weight:570;border:none;background:none;padding:0 4px;text-transform:capitalize;color:var(--text)}
 #month-label:hover{color:var(--accent)}
 
@@ -514,6 +517,7 @@ This typically indicates that your device does not have a healthy Internet conne
     <header class="topbar">
       <h1 id="page-title">Dashboard</h1>
       <div class="month-nav" id="month-nav">
+        <button class="all-btn" id="btn-all-months" title="Ver todos os meses">Todos</button>
         <button class="month-btn" id="month-prev" aria-label="Mês anterior"></button>
         <button id="month-label" title="Voltar para o mês atual"></button>
         <button class="month-btn" id="month-next" aria-label="Próximo mês"></button>
@@ -826,6 +830,32 @@ function monthStats(ym) {
   return { inc, exp, byCat };
 }
 
+/* ---------- agregação "todos os meses" ---------- */
+const isAll = m => m === 'all';
+
+function allStats() {
+  let inc = 0, exp = 0;
+  const byCat = {};
+  for (const t of db.transactions) {
+    if (t.type === 'transfer') continue;
+    if (t.type === 'income') inc += t.amount;
+    else {
+      exp += t.amount;
+      byCat[t.categoryId] = (byCat[t.categoryId] || 0) + t.amount;
+    }
+  }
+  return { inc, exp, byCat };
+}
+
+function statsFor(m)  { return isAll(m) ? allStats() : monthStats(m); }
+function txFor(m)     { return isAll(m) ? db.transactions.slice() : monthTx(m); }
+
+function monthsWithData() {
+  const set = new Set();
+  for (const t of db.transactions) if (t.type !== 'transfer') set.add(ymOf(t.date));
+  return Math.max(1, set.size);
+}
+
 function seriesNetWorth(endYm, n = 12) {
   const labels = [], values = [];
   const today = todayISO();
@@ -957,7 +987,7 @@ const centerTextPlugin = {
     ctx.fillText(fmt(total), x, y - 7);
     ctx.fillStyle = cssv('--text-3');
     ctx.font = `500 10px ${Chart.defaults.font.family}`;
-    ctx.fillText('no mês', x, y + 10);
+    ctx.fillText(isAll(state.month) ? 'no total' : 'no mês', x, y + 10);
     ctx.restore();
   }
 };
@@ -1113,7 +1143,8 @@ function render() {
   const meta = PAGE_META[state.page];
   el('page-title').textContent = meta.title;
   el('month-nav').style.display = meta.month ? '' : 'none';
-  el('month-label').textContent = ymLabel(state.month);
+  el('month-label').textContent = isAll(state.month) ? 'Todos os meses' : ymLabel(state.month);
+  el('btn-all-months').classList.toggle('active', isAll(state.month));
   el('action-label').textContent = meta.action.label;
   currentAction = meta.action.fn;
 
@@ -1189,12 +1220,14 @@ function deltaChip(cur, prev, goodUp) {
 function renderDashboard() {
   const root = el('page-dashboard');
   const ym = state.month;
-  const s = monthStats(ym);
-  const p = monthStats(ymShift(ym, -1));
+  const all = isAll(ym);
+  const anchor = all ? ymOf(todayISO()) : ym;
+  const s = statsFor(ym);
+  const p = all ? null : monthStats(ymShift(ym, -1));
   const today = todayISO();
-  const ref = monthEndISO(ym) < today ? monthEndISO(ym) : today;
+  const ref = all ? today : (monthEndISO(ym) < today ? monthEndISO(ym) : today);
   const nw = netWorth(ref);
-  const nwPrev = netWorth(monthEndISO(ymShift(ym, -1)));
+  const nwPrev = all ? 0 : netWorth(monthEndISO(ymShift(ym, -1)));
   const result = s.inc - s.exp;
 
   const recent = db.transactions.slice()
@@ -1211,7 +1244,7 @@ function renderDashboard() {
             <div class="hero-label">Patrimônio total</div>
             <div class="hero-value num">${fmt(nw)}</div>
           </div>
-          <div>${deltaChip(nw, nwPrev, true)}</div>
+          <div>${all ? '' : deltaChip(nw, nwPrev, true)}</div>
         </div>
         ${pending > 0 ? `<div class="hero-meta num">💳 ${fmt(pending)} em faturas abertas, ainda não descontado das contas</div>` : ''}
         <div class="chart-wrap tall"><canvas id="ch-nw"></canvas></div>
@@ -1224,17 +1257,17 @@ function renderDashboard() {
 
     <div class="grid-kpi">
       <div class="card kpi">
-        <div class="kpi-label">Receitas do mês</div>
+        <div class="kpi-label">${all ? 'Receitas totais' : 'Receitas do mês'}</div>
         <div class="kpi-value num" style="color:var(--green)">${fmt(s.inc)}</div>
-        <div class="kpi-meta">${deltaChip(s.inc, p.inc, true)}</div>
+        <div class="kpi-meta">${all ? '' : deltaChip(s.inc, p.inc, true)}</div>
       </div>
       <div class="card kpi">
-        <div class="kpi-label">Despesas do mês</div>
+        <div class="kpi-label">${all ? 'Despesas totais' : 'Despesas do mês'}</div>
         <div class="kpi-value num">${fmt(s.exp)}</div>
-        <div class="kpi-meta">${deltaChip(s.exp, p.exp, false)}</div>
+        <div class="kpi-meta">${all ? '' : deltaChip(s.exp, p.exp, false)}</div>
       </div>
       <div class="card kpi">
-        <div class="kpi-label">Resultado do mês</div>
+        <div class="kpi-label">${all ? 'Resultado total' : 'Resultado do mês'}</div>
         <div class="kpi-value num" style="color:${result > 0 ? 'var(--green)' : result < 0 ? 'var(--red)' : 'var(--text)'}">${result < 0 ? '\u2212' : ''}${fmt(Math.abs(result))}</div>
         <div class="kpi-meta"></div>
       </div>
@@ -1278,13 +1311,13 @@ function renderDashboard() {
     document.querySelectorAll('#page-dashboard .chart-wrap').forEach(chartFallback);
     return;
   }
-  const nws = seriesNetWorth(ym, 12);
+  const nws = seriesNetWorth(anchor, 12);
   makeNetWorthChart(el('ch-nw'), nws.labels, nws.values);
 
   if (s.exp === 0) {
     el('wrap-cat').innerHTML = `<div class="empty" style="padding:40px 16px">
       <div class="empty-emoji">🍩</div>
-      <div class="empty-sub">Sem despesas em ${ymLabel(ym).toLowerCase()} até agora.</div>
+      <div class="empty-sub">${all ? 'Sem despesas registradas até agora.' : 'Sem despesas em ' + ymLabel(ym).toLowerCase() + ' até agora.'}</div>
     </div>`;
   } else {
     const entries = Object.entries(s.byCat).sort((a, b) => b[1] - a[1]);
@@ -1297,7 +1330,7 @@ function renderDashboard() {
     makeDoughnut(el('ch-cat'), top, s.exp);
   }
 
-  const fl = seriesFlow(ym, 6);
+  const fl = seriesFlow(anchor, 6);
   makeFlow(el('ch-flow'), fl.labels, fl.inc, fl.exp);
 }
 
@@ -1308,7 +1341,7 @@ const norm = s => String(s || '').toLowerCase().normalize('NFD').replace(/[\u030
 
 function renderTransacoes() {
   const root = el('page-transacoes');
-  const s = monthStats(state.month);
+  const s = statsFor(state.month);
   const saldo = s.inc - s.exp;
 
   const catOpts = type => db.categories.filter(c => c.type === type)
@@ -1360,7 +1393,7 @@ function renderTransacoes() {
 function renderTxList() {
   const box = el('tx-list');
   const f = state.txf;
-  const all = monthTx(state.month);
+  const all = txFor(state.month);
   const q = norm(f.q);
 
   const list = all.filter(t => {
@@ -1379,7 +1412,7 @@ function renderTxList() {
     const hasAny = all.length > 0;
     box.innerHTML = `<div class="empty">
       <div class="empty-emoji">${hasAny ? '🔍' : '🗒️'}</div>
-      <div class="empty-title">${hasAny ? 'Nada encontrado' : 'Nenhum lançamento em ' + ymLabel(state.month).toLowerCase()}</div>
+      <div class="empty-title">${hasAny ? 'Nada encontrado' : (isAll(state.month) ? 'Nenhum lançamento ainda' : 'Nenhum lançamento em ' + ymLabel(state.month).toLowerCase())}</div>
       <div class="empty-sub">${hasAny ? 'Ajuste os filtros ou a busca para ver outros lançamentos.' : 'Registre receitas e despesas para vê-las aqui, agrupadas por dia.'}</div>
       ${hasAny ? '' : `<button class="btn btn-primary btn-sm" id="tx-first">${ICONS.plus}Nova transação</button>`}
     </div>`;
@@ -1436,10 +1469,13 @@ function renderContas() {
    ============================================================ */
 function renderOrcamento() {
   const root = el('page-orcamento');
-  const s = monthStats(state.month);
+  const all = isAll(state.month);
+  const s = statsFor(state.month);
   const cats = db.categories.filter(c => c.type === 'expense');
   const bud = db.budgets;
-  const totalBud = cats.reduce((sum, c) => sum + (bud[c.id] || 0), 0);
+  const factor = all ? monthsWithData() : 1; // orçamento acumulado
+  const scaledBud = cid => (bud[cid] || 0) * factor;
+  const totalBud = cats.reduce((sum, c) => sum + scaledBud(c.id), 0);
   const spentOf = c => s.byCat[c.id] || 0;
 
   const sorted = cats.slice().sort((a, b) => {
@@ -1449,15 +1485,15 @@ function renderOrcamento() {
   });
 
   const rows = sorted.map(c => {
-    const spent = spentOf(c), b = bud[c.id] || 0;
+    const spent = spentOf(c), monthly = bud[c.id] || 0, b = monthly * factor;
     const over = b > 0 && spent > b;
     const pct = b > 0 ? Math.round((spent / b) * 100) : 0;
     return `<div class="bud-row">
       <div class="bud-head">
         <span class="bud-ic" style="background:${hexA(c.color, .16)}">${c.icon}</span>
         <span class="bud-name">${esc(c.name)}</span>
-        <span class="bud-vals num">${b
-          ? `<span>${fmt(spent)}</span><span class="de">de</span><button class="bud-amt-btn num" data-edit="${c.id}">${fmt(b)}</button>`
+        <span class="bud-vals num">${monthly
+          ? `<span>${fmt(spent)}</span><span class="de">de</span><button class="bud-amt-btn num" data-edit="${c.id}" title="${all ? 'Editar orçamento mensal (' + fmt(monthly) + ')' : 'Editar orçamento'}">${fmt(b)}</button>`
           : `<span style="color:var(--text-2)">${fmt(spent)}</span><button class="bud-set" data-edit="${c.id}">Definir</button>`}</span>
       </div>
       ${b ? `<div class="progress"><i style="width:${Math.min(100, pct)}%;background:${over ? 'var(--red)' : c.color}"></i></div>
@@ -1472,15 +1508,18 @@ function renderOrcamento() {
       <div class="bud-foot"><span>${pct}% do orçamento usado</span><span class="num ${over ? 'over' : ''}">${over ? 'Excedeu ' + fmt(s.exp - totalBud) : 'Restam ' + fmt(totalBud - s.exp)}</span></div>`;
   })() : `<div class="f-hint" style="margin-top:6px">Defina um valor mensal por categoria para acompanhar quanto ainda dá para gastar.</div>`;
 
+  const gastoLabel = all ? `Gasto acumulado (${factor} ${factor === 1 ? 'mês' : 'meses'})` : 'Gasto em ' + ymLabel(state.month).toLowerCase();
+  const budLabel = all ? 'Orçamento acumulado' : 'Orçamento mensal';
+
   root.innerHTML = `
     <div class="card card-pad" style="margin-bottom:14px">
       <div class="hero-row">
         <div>
-          <div class="hero-label">Gasto em ${ymLabel(state.month).toLowerCase()}</div>
+          <div class="hero-label">${gastoLabel}</div>
           <div class="hero-value num" style="font-size:25px">${fmt(s.exp)}</div>
         </div>
         <div style="text-align:right">
-          <div class="hero-label">Orçamento mensal</div>
+          <div class="hero-label">${budLabel}</div>
           <div class="kpi-value num">${totalBud ? fmt(totalBud) : '—'}</div>
         </div>
       </div>
@@ -2159,9 +2198,21 @@ function init() {
 
   el('month-prev').innerHTML = ICONS.chevL;
   el('month-next').innerHTML = ICONS.chevR;
-  el('month-prev').addEventListener('click', () => { state.month = ymShift(state.month, -1); render(); });
-  el('month-next').addEventListener('click', () => { state.month = ymShift(state.month, 1); render(); });
+  el('month-prev').addEventListener('click', () => {
+    const from = isAll(state.month) ? ymOf(todayISO()) : state.month;
+    state.month = ymShift(from, -1);
+    render();
+  });
+  el('month-next').addEventListener('click', () => {
+    const from = isAll(state.month) ? ymOf(todayISO()) : state.month;
+    state.month = ymShift(from, 1);
+    render();
+  });
   el('month-label').addEventListener('click', () => { state.month = ymOf(todayISO()); render(); });
+  el('btn-all-months').addEventListener('click', () => {
+    state.month = isAll(state.month) ? ymOf(todayISO()) : 'all';
+    render();
+  });
 
   el('action-ic').innerHTML = ICONS.plus;
   el('btn-primary-action').addEventListener('click', () => currentAction());
