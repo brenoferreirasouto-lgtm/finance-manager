@@ -359,6 +359,51 @@ input[type="date"].input{min-height:36px}
 .acct-add:hover{border-color:var(--accent);color:var(--accent)}
 .acct-add svg{width:16px;height:16px}
 
+/* ================= faturas ================= */
+.dash-filter{display:flex;align-items:center;gap:10px;margin-bottom:20px;flex-wrap:wrap}
+.dash-filter .eyebrow{margin-right:auto}
+.inv-select{
+  appearance:none;-webkit-appearance:none;
+  height:32px;padding:0 30px 0 11px;max-width:270px;
+  border:1px solid var(--border-soft);border-radius:var(--r-sm);
+  background-color:var(--card);color:var(--text-2);
+  font-family:inherit;font-size:12px;font-weight:560;letter-spacing:-.01em;cursor:pointer;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23626873' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat:no-repeat;background-position:right 10px center;
+  transition:border-color .15s,color .15s,background-color .15s;
+}
+.inv-select:hover{color:var(--text);border-color:var(--border)}
+.inv-select:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
+.inv-select.on{color:var(--accent);border-color:transparent;background-color:var(--accent-soft)}
+
+.invs{display:flex;flex-direction:column;border-top:1px solid var(--border-soft)}
+.inv{border-bottom:1px solid var(--border-soft)}
+.inv-head{display:grid;grid-template-columns:auto 1fr auto;grid-template-rows:auto auto;align-items:center;gap:3px 14px;width:100%;text-align:left;padding:15px 6px;border:none;background:none;transition:background .12s}
+.inv-head:hover{background:var(--hover)}
+.inv-mark{grid-row:1/3;width:40px;height:40px;border-radius:10px;display:grid;place-items:center;flex:none;background:var(--card-2);border:1px solid var(--border-soft);color:var(--text-3);transition:color .15s,border-color .15s}
+.inv-mark svg{width:17px;height:17px}
+.inv-title{grid-row:1;grid-column:2;display:flex;align-items:center;gap:8px;min-width:0;font-size:13.5px;font-weight:580}
+.inv-title>span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.inv-sub{grid-row:2;grid-column:2;font-size:11.5px;color:var(--text-3);min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.inv-amt{grid-row:1;grid-column:3;font-size:16px;font-weight:600;letter-spacing:-.02em;text-align:right;white-space:nowrap}
+.inv-meta{grid-row:2;grid-column:3;font-size:11px;color:var(--text-3);text-align:right;white-space:nowrap}
+.inv-items{display:none;padding:0 4px 12px}
+.inv.open>.inv-items{display:block}
+.inv.open .inv-mark{color:var(--accent);border-color:var(--accent-dim)}
+.inv-more{padding:13px 6px;font-size:11.5px;color:var(--text-3)}
+.tag{font-size:9.5px;font-weight:680;letter-spacing:.07em;text-transform:uppercase;padding:3px 6px;border-radius:4px;flex:none;border:1px solid var(--border-soft);background:var(--card-2);color:var(--text-3);white-space:nowrap}
+.tag.on{color:var(--accent);background:var(--accent-soft);border-color:transparent}
+.tag.due{color:var(--text);background:var(--card-2);border-color:var(--border)}
+@media (max-width:640px){
+  .inv-select{flex:1;max-width:none}
+  .inv-amt{font-size:15px}
+  .inv-mark{width:36px;height:36px}
+  /* fechamento/vencimento sao o dado principal da linha: ganham a largura toda */
+  .inv-sub{grid-column:2/-1}
+  .inv-meta{display:none}
+}
+
+
 /* ================= budget ================= */
 .bud-list{padding:2px 20px 8px}
 .bud-row{padding:16px 0;border-bottom:1px solid var(--border-soft)}
@@ -473,13 +518,14 @@ textarea.input{height:auto;min-height:130px;padding:11px 12px;resize:vertical;fo
 /* ================= mobile nav ================= */
 .bottomnav{
   display:none;position:fixed;left:0;right:0;bottom:0;z-index:50;
-  grid-template-columns:repeat(5,1fr);
+  grid-auto-flow:column;grid-auto-columns:minmax(0,1fr);
   background:var(--topbar-bg);backdrop-filter:blur(16px) saturate(1.2);-webkit-backdrop-filter:blur(16px) saturate(1.2);
   border-top:1px solid var(--border-soft);
   padding:7px 8px calc(8px + env(safe-area-inset-bottom));
 }
 .bnav-item{display:flex;flex-direction:column;align-items:center;gap:4px;padding:5px 2px;border:none;background:none;color:var(--text-3);font-size:9.5px;font-weight:560;border-radius:var(--r-sm)}
 .bnav-item svg{width:20px;height:20px}
+.bnav-item span{max-width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .bnav-item.active{color:var(--accent)}
 
 .fab{
@@ -628,7 +674,8 @@ This typically indicates that your device does not have a healthy Internet conne
       <section class="page" id="page-transacoes"></section>
       <section class="page" id="page-contas"></section>
       <section class="page" id="page-orcamento"></section>
-      <section class="page" id="page-recorrentes"></section>
+      <section class="page" id="page-faturas"></section>
+    <section class="page" id="page-recorrentes"></section>
     </div>
   </main>
 </div>
@@ -686,6 +733,7 @@ const PAGES = [
   { id: 'transacoes',  label: 'Transações',  icon: 'arrows' },
   { id: 'contas',      label: 'Contas',      icon: 'wallet' },
   { id: 'orcamento',   label: 'Orçamento',   icon: 'pie' },
+  { id: 'faturas',     label: 'Faturas',     icon: 'card' },
   { id: 'recorrentes', label: 'Recorrentes', icon: 'repeat' }
 ];
 
@@ -834,6 +882,7 @@ const state = {
   page: 'dashboard',
   month: ymOf(todayISO()),
   txf: { type: 'all', cat: 'all', acc: 'all', q: '' },
+  invoice: null, // fatura usada como periodo no dashboard: '<accId>|<fechamento>'
   charts: {}
 };
 let currentAction = () => {};
@@ -908,6 +957,92 @@ function totalPendingCredit() {
     if (t.type === 'expense' && t.method === 'credit' && chargeDateOf(t) > today) s += t.amount;
   }
   return s;
+}
+
+/* ---------- faturas: agrupamento, status e navegacao ---------- */
+const creditAccounts = () => db.accounts.filter(a => a.invoiceDay);
+
+// janela de compras da fatura que fecha em closeISO:
+// do fechamento anterior (inclusive) ate a vespera deste fechamento
+function invoiceWindow(a, closeISO) {
+  let [y, m] = closeISO.split('-').map(Number);
+  m--; if (m < 1) { m = 12; y--; }
+  return { start: clampDate(y, m, a.invoiceDay), end: addDaysISO(closeISO, -1) };
+}
+
+// aberta: ainda recebe compras | fechada: fechou, aguarda o vencimento | paga: ja saiu do saldo
+function invoiceStatus(inv) {
+  const t = todayISO();
+  if (t < inv.close) return 'aberta';
+  if (t < inv.due) return 'fechada';
+  return 'paga';
+}
+const INV_STATUS = {
+  aberta:  { label: 'Aberta',  cls: 'on',  hint: 'ainda recebendo compras' },
+  fechada: { label: 'Fechada', cls: 'due', hint: 'aguardando o vencimento' },
+  paga:    { label: 'Paga',    cls: '',    hint: 'ja descontada do saldo' }
+};
+
+const invoiceKey = inv => inv.accId + '|' + inv.close;
+// usado depois de "Fatura de ": mes em minuscula
+function invoiceLabel(inv) {
+  const d = parseISO(inv.due);
+  const m = d.toLocaleDateString('pt-BR', { month: 'long' });
+  return d.getFullYear() !== new Date().getFullYear() ? `${m} de ${d.getFullYear()}` : m;
+}
+// usado sozinho (eixo do grafico)
+function invoiceShort(inv) {
+  const d = parseISO(inv.due);
+  const m = cap(d.toLocaleDateString('pt-BR', { month: 'short' }).replace('.', ''));
+  return d.getFullYear() !== new Date().getFullYear() ? `${m}/${String(d.getFullYear()).slice(2)}` : m;
+}
+
+// todas as faturas de uma conta (mais recente primeiro); sempre inclui a fatura corrente
+function invoicesOf(a) {
+  if (!a.invoiceDay) return [];
+  const mk = close => {
+    const w = invoiceWindow(a, close);
+    return {
+      accId: a.id, close, start: w.start, end: w.end,
+      due: a.dueDay ? dueDateOf(close, a.invoiceDay, a.dueDay) : close,
+      total: 0, items: []
+    };
+  };
+  const map = new Map();
+  for (const t of db.transactions) {
+    if (t.type !== 'expense' || t.method !== 'credit' || t.accountId !== a.id) continue;
+    const close = nextInvoiceDate(t.date, a.invoiceDay);
+    if (!map.has(close)) map.set(close, mk(close));
+    const inv = map.get(close);
+    inv.total += t.amount;
+    inv.items.push(t);
+  }
+  const cur = nextInvoiceDate(todayISO(), a.invoiceDay);
+  if (!map.has(cur)) map.set(cur, mk(cur));
+  const list = [...map.values()].sort((x, y) => y.close.localeCompare(x.close));
+  for (const inv of list) {
+    inv.status = invoiceStatus(inv);
+    inv.items.sort((x, y) => y.date.localeCompare(x.date) || (y.createdAt || 0) - (x.createdAt || 0));
+  }
+  return list;
+}
+
+function invoiceByKey(key) {
+  if (!key) return null;
+  const i = key.indexOf('|');
+  if (i < 0) return null;
+  const a = accById(key.slice(0, i));
+  if (!a || !a.invoiceDay) return null;
+  return invoicesOf(a).find(x => x.close === key.slice(i + 1)) || null;
+}
+
+// faturas ainda nao debitadas do saldo (aberta + fechada), do vencimento mais proximo ao mais distante
+function openInvoices() {
+  const out = [];
+  for (const a of creditAccounts()) {
+    for (const inv of invoicesOf(a)) if (inv.status !== 'paga') out.push(inv);
+  }
+  return out.sort((x, y) => x.due.localeCompare(y.due));
 }
 
 function accountBalance(a, until) {
@@ -1246,6 +1381,7 @@ const PAGE_META = {
   transacoes:  { title: 'Transações',  month: true,  action: { label: 'Nova transação',  fn: () => openTxModal() } },
   contas:      { title: 'Contas',      month: false, action: { label: 'Nova conta',      fn: () => openAccountModal() } },
   orcamento:   { title: 'Orçamento',   month: true,  action: { label: 'Nova transação',  fn: () => openTxModal() } },
+  faturas:     { title: 'Faturas',     month: false, action: { label: 'Nova transação',  fn: () => openTxModal() } },
   recorrentes: { title: 'Recorrentes', month: false, action: { label: 'Nova recorrência', fn: () => openRecurringModal() } }
 };
 
@@ -1259,7 +1395,8 @@ function render() {
 
   const meta = PAGE_META[state.page];
   el('page-title').textContent = meta.title;
-  el('month-nav').style.display = meta.month ? '' : 'none';
+  const byInvoice = state.page === 'dashboard' && !!state.invoice && !!invoiceByKey(state.invoice);
+  el('month-nav').style.display = (meta.month && !byInvoice) ? '' : 'none';
   el('month-label').textContent = isAll(state.month) ? 'Todos os meses' : ymLabel(state.month);
   el('btn-all-months').classList.toggle('active', isAll(state.month));
   el('action-label').textContent = meta.action.label;
@@ -1270,7 +1407,7 @@ function render() {
   );
 
   ({ dashboard: renderDashboard, transacoes: renderTransacoes, contas: renderContas,
-     orcamento: renderOrcamento, recorrentes: renderRecorrentes })[state.page]();
+     orcamento: renderOrcamento, faturas: renderFaturas, recorrentes: renderRecorrentes })[state.page]();
 }
 
 /* ---------- linhas de lançamento ---------- */
@@ -1336,6 +1473,11 @@ function deltaChip(cur, prev, goodUp) {
    ============================================================ */
 function renderDashboard() {
   const root = el('page-dashboard');
+  if (state.invoice) {
+    const inv = invoiceByKey(state.invoice);
+    if (inv) { renderDashboardInvoice(root, inv); return; }
+    state.invoice = null; // fatura sumiu (conta apagada / cartao desconfigurado)
+  }
   const ym = state.month;
   const all = isAll(ym);
   const anchor = all ? ymOf(todayISO()) : ym;
@@ -1378,6 +1520,7 @@ function renderDashboard() {
   }
 
   root.innerHTML = `
+    ${dashFilterHTML()}
     <div class="summary">
       <div class="summary-main">
         <div class="hero-label">Patrimônio total</div>
@@ -1440,6 +1583,8 @@ function renderDashboard() {
         <div class="attn" id="dash-attn"></div>
       </div>
     </div>`;
+
+  bindDashFilter();
 
   // categoria: barras ou vazio
   const wrapCat = el('wrap-cat');
@@ -1509,6 +1654,172 @@ function renderDashboard() {
   makeNetWorthChart(el('ch-nw'), nws.labels, nws.values);
   const fl = seriesFlow(anchor, 6);
   makeFlow(el('ch-flow'), fl.labels, fl.inc, fl.exp);
+}
+
+/* ---------- filtro de período por fatura ---------- */
+function relDays(dateISO) {
+  const d = Math.round((parseISO(dateISO) - parseISO(todayISO())) / 86400000);
+  if (d === 0) return 'hoje';
+  if (d === 1) return 'amanhã';
+  if (d === -1) return 'ontem';
+  return d > 0 ? `em ${d} dias` : `há ${-d} dias`;
+}
+
+function dashFilterHTML() {
+  const accs = creditAccounts();
+  if (accs.length === 0) return '';
+  let opts = `<option value="">Período: mês corrido</option>`;
+  for (const a of accs) {
+    opts += `<optgroup label="${esc(a.name)}">` + invoicesOf(a).slice(0, 12).map(i =>
+      `<option value="${invoiceKey(i)}"${state.invoice === invoiceKey(i) ? ' selected' : ''}>Fatura de ${esc(invoiceLabel(i))} · ${INV_STATUS[i.status].label}</option>`
+    ).join('') + `</optgroup>`;
+  }
+  return `<div class="dash-filter">
+    <span class="eyebrow">Período</span>
+    <select class="inv-select${state.invoice ? ' on' : ''}" id="inv-select" aria-label="Filtrar por fatura">${opts}</select>
+  </div>`;
+}
+
+function bindDashFilter() {
+  const sel = el('inv-select');
+  if (!sel) return;
+  sel.addEventListener('change', () => {
+    state.invoice = sel.value || null;
+    render();
+    window.scrollTo({ top: 0 });
+  });
+}
+
+/* ---------- dashboard filtrado por uma fatura ---------- */
+function renderDashboardInvoice(root, inv) {
+  const a = accById(inv.accId);
+  const st = INV_STATUS[inv.status];
+  const list = invoicesOf(a);
+  const idx = list.findIndex(x => x.close === inv.close);
+  const prev = list[idx + 1] || null;
+  const n = inv.items.length;
+
+  // gastos por categoria dentro da fatura
+  const byCat = {};
+  for (const t of inv.items) byCat[t.categoryId] = (byCat[t.categoryId] || 0) + t.amount;
+  const entries = Object.entries(byCat).sort((x, y) => y[1] - x[1]);
+  const catMax = entries.length ? entries[0][1] : 1;
+  const catRows = entries.slice(0, 8).map(([id, v]) => {
+    const c = catById(id) || { name: 'Sem categoria', color: '#8a8f98' };
+    const pct = inv.total ? Math.round(v / inv.total * 100) : 0;
+    return `<div class="catbar">
+      <div class="catbar-name"><span class="dot" style="background:${c.color}"></span><span>${esc(c.name)}</span></div>
+      <div class="catbar-val num">${fmt(v)}<small>${pct}%</small></div>
+      <div class="catbar-track"><i style="width:${Math.max(4, Math.round(v / catMax * 100))}%"></i></div>
+    </div>`;
+  }).join('');
+
+  // histórico: últimas 6 faturas desta conta, da mais antiga para a mais recente
+  const hist = list.slice(Math.max(0, idx - 2), idx + 4).reverse();
+  const histIdx = hist.findIndex(x => x.close === inv.close);
+
+  const dueTxt = inv.status === 'paga'
+    ? `debitada ${relDays(inv.due)}`
+    : `sai do saldo ${relDays(inv.due)}`;
+
+  root.innerHTML = `
+    ${dashFilterHTML()}
+
+    <div class="summary">
+      <div class="summary-main">
+        <div class="hero-label">Fatura de ${esc(invoiceLabel(inv))} · ${esc(a.name)}</div>
+        <div class="hero-value num">${fmt(inv.total)}</div>
+        <div class="hero-meta">
+          <span class="tag ${st.cls}">${st.label}</span>
+          ${prev && inv.status !== 'aberta' ? deltaChip(inv.total, prev.total, false) : ''}
+          <span>${st.hint}</span>
+        </div>
+      </div>
+      <div class="hero-meta">${ICONS.calendar}Compras de ${shortDate(inv.start)} a ${shortDate(inv.end)}</div>
+    </div>
+
+    <div class="metrics">
+      <div class="metric">
+        <div class="metric-label">Fechamento</div>
+        <div class="metric-value">${shortDate(inv.close)}</div>
+        <div class="metric-sub" style="color:var(--text-3)">${inv.status === 'aberta' ? 'fecha ' + relDays(inv.close) : 'fechou ' + relDays(inv.close)}</div>
+      </div>
+      <div class="metric">
+        <div class="metric-label">Vencimento</div>
+        <div class="metric-value">${shortDate(inv.due)}</div>
+        <div class="metric-sub" style="color:var(--text-3)">${dueTxt}</div>
+      </div>
+      <div class="metric">
+        <div class="metric-label">Lançamentos</div>
+        <div class="metric-value num">${n}</div>
+        <div class="metric-sub" style="color:var(--text-3)">${entries.length} ${entries.length === 1 ? 'categoria' : 'categorias'}</div>
+      </div>
+    </div>
+
+    <div class="section grid-2">
+      <div class="card">
+        <div class="card-head"><span class="card-title">Faturas de ${esc(a.name)}</span></div>
+        <div class="chart-wrap"><canvas id="ch-inv"></canvas></div>
+      </div>
+      <div class="card">
+        <div class="card-head"><span class="card-title">Gastos por categoria</span></div>
+        <div class="catbars" id="wrap-invcat"></div>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-head">
+        <div class="section-title">Lançamentos da fatura</div>
+        <div class="eyebrow">${n} ${n === 1 ? 'compra' : 'compras'}</div>
+      </div>
+      <div class="card"><div class="tx-list" id="inv-tx"></div></div>
+    </div>`;
+
+  bindDashFilter();
+
+  el('wrap-invcat').innerHTML = n
+    ? catRows
+    : `<div class="empty" style="padding:34px 16px"><div class="empty-sub">Sem compras nesta fatura.</div></div>`;
+
+  const box = el('inv-tx');
+  if (n) {
+    box.innerHTML = groupedTxHTML(inv.items);
+    bindTxRows(box);
+  } else {
+    box.innerHTML = `<div class="empty" style="padding:34px 16px">
+      <div class="empty-emoji">${ICONS.card}</div>
+      <div class="empty-title">Fatura vazia</div>
+      <div class="empty-sub">Nenhuma compra no crédito entre ${shortDate(inv.start)} e ${shortDate(inv.end)}.</div>
+    </div>`;
+  }
+
+  if (!window.Chart) { document.querySelectorAll('#page-dashboard .chart-wrap').forEach(chartFallback); return; }
+  makeInvoiceBars(el('ch-inv'), hist.map(invoiceShort), hist.map(x => x.total / 100), histIdx);
+}
+
+function makeInvoiceBars(canvas, labels, values, activeIdx) {
+  const on = cssv('--accent'), off = cssv('--border');
+  state.charts.inv = new Chart(canvas, {
+    type: 'bar',
+    data: { labels, datasets: [{
+      data: values, borderRadius: 3, maxBarThickness: 30,
+      backgroundColor: values.map((_, i) => i === activeIdx ? on : off)
+    }] },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: Object.assign(baseTooltip(), { callbacks: { label: c => ` ${BRL.format(c.parsed.y)}` } })
+      },
+      scales: {
+        x: { grid: { display: false }, border: { display: false } },
+        y: {
+          grid: { color: cssv('--border-soft') }, border: { display: false },
+          beginAtZero: true, ticks: { maxTicksLimit: 5, callback: v => BRL_COMPACT.format(v) }
+        }
+      }
+    }
+  });
 }
 
 /* ============================================================
@@ -1633,6 +1944,10 @@ function renderContas() {
       </div>
     </div>
     <div class="section">
+      <div class="section-head">
+        <div class="eyebrow">Suas contas</div>
+        ${creditAccounts().length ? `<button class="link-btn" id="acc-invoices">Ver faturas ${ICONS.chevR}</button>` : ''}
+      </div>
       <div class="accts">${rows}</div>
       <button class="acct-add" id="acc-add">${ICONS.plus} Nova conta</button>
     </div>`;
@@ -1641,6 +1956,8 @@ function renderContas() {
     b.addEventListener('click', () => openAccountModal(accById(b.dataset.accid)))
   );
   el('acc-add').addEventListener('click', () => openAccountModal());
+  const invLink = el('acc-invoices');
+  if (invLink) invLink.addEventListener('click', () => go('faturas'));
 }
 
 /* ============================================================
@@ -1743,6 +2060,93 @@ function startBudgetEdit(cid, btn) {
       save();
     }
     renderOrcamento();
+  });
+}
+
+/* ============================================================
+   Faturas
+   ============================================================ */
+function invRowHTML(inv) {
+  const st = INV_STATUS[inv.status];
+  const n = inv.items.length;
+  return `<div class="inv" data-invkey="${invoiceKey(inv)}">
+    <button class="inv-head">
+      <span class="inv-mark">${ICONS.card}</span>
+      <span class="inv-title"><span>Fatura de ${esc(invoiceLabel(inv))}</span><span class="tag ${st.cls}">${st.label}</span></span>
+      <span class="inv-sub">Fecha ${shortDate(inv.close)} · Vence ${shortDate(inv.due)}</span>
+      <span class="inv-amt num">${fmt(inv.total)}</span>
+      <span class="inv-meta">${n} ${n === 1 ? 'lançamento' : 'lançamentos'}</span>
+    </button>
+    <div class="inv-items">${n
+      ? groupedTxHTML(inv.items)
+      : `<div class="inv-more">Nenhuma compra no crédito entre ${shortDate(inv.start)} e ${shortDate(inv.end)}.</div>`
+    }</div>
+  </div>`;
+}
+
+function renderFaturas() {
+  const root = el('page-faturas');
+  const accs = creditAccounts();
+
+  if (accs.length === 0) {
+    root.innerHTML = `<div class="empty">
+      <div class="empty-emoji">${ICONS.card}</div>
+      <div class="empty-title">Nenhum cartão configurado</div>
+      <div class="empty-sub">Defina o dia de fechamento e o de vencimento em uma conta para acompanhar as faturas por aqui.</div>
+      <button class="btn btn-primary btn-sm" id="fat-setup">${ICONS.wallet}Ir para Contas</button>
+    </div>`;
+    el('fat-setup').addEventListener('click', () => go('contas'));
+    return;
+  }
+
+  const open = openInvoices();
+  const pend = open.reduce((sum, i) => sum + i.total, 0);
+  const next = open.find(i => i.total > 0);
+
+  let html = `<div class="summary">
+    <div class="summary-main">
+      <div class="hero-label">Em aberto</div>
+      <div class="hero-value num">${fmt(pend)}</div>
+      <div class="hero-meta">${ICONS.card}<span>${open.length} ${open.length === 1 ? 'fatura ainda não descontada' : 'faturas ainda não descontadas'} do saldo${next ? ` · próximo vencimento ${shortDate(next.due)}, ${relDays(next.due)}` : ''}</span></div>
+    </div>
+  </div>`;
+
+  for (const a of accs) {
+    const list = invoicesOf(a);
+    const shown = list.slice(0, 8);
+    const rest = list.length - shown.length;
+    const aberta = list.find(i => i.status === 'aberta');
+    html += `<div class="section">
+      <div class="section-head">
+        <div class="section-title">${a.icon} ${esc(a.name)}</div>
+        <div class="eyebrow">Fecha dia ${a.invoiceDay}${a.dueDay ? ` · Vence dia ${a.dueDay}` : ' · sem vencimento definido'}</div>
+      </div>
+      <div class="invs">
+        ${shown.map(invRowHTML).join('')}
+        ${rest > 0 ? `<div class="inv-more">+ ${rest} ${rest === 1 ? 'fatura anterior' : 'faturas anteriores'}</div>` : ''}
+      </div>
+      ${aberta ? `<button class="acct-add" data-openinv="${invoiceKey(aberta)}">${ICONS.dashboard} Analisar a fatura aberta no dashboard</button>` : ''}
+    </div>`;
+  }
+
+  root.innerHTML = html;
+
+  // abre/fecha os lançamentos de cada fatura
+  root.querySelectorAll('.inv-head').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const box = btn.closest('.inv');
+      const wasOpen = box.classList.contains('open');
+      box.classList.toggle('open', !wasOpen);
+      if (!wasOpen) bindTxRows(box.querySelector('.inv-items'));
+    });
+  });
+
+  // manda a fatura para o filtro do dashboard
+  root.querySelectorAll('[data-openinv]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      state.invoice = btn.dataset.openinv;
+      go('dashboard');
+    });
   });
 }
 
