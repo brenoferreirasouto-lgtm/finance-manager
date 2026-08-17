@@ -565,6 +565,11 @@ textarea.input{height:auto;min-height:130px;padding:11px 12px;resize:vertical;fo
   @keyframes sheetIn{from{transform:translateY(60%);opacity:.5}}
   #toasts{bottom:calc(142px + env(safe-area-inset-bottom))}
 }
+@media (max-width:420px){
+  .bottomnav{padding-left:4px;padding-right:4px}
+  .bnav-item{font-size:8.7px;letter-spacing:-.005em;padding-left:1px;padding-right:1px;gap:3px}
+  .bnav-item svg{width:19px;height:19px}
+}
 @media (prefers-reduced-motion:reduce){
   *,*::before,*::after{animation:none!important;transition:none!important}
 }
@@ -1731,8 +1736,8 @@ function renderDashboardInvoice(root, inv) {
         <div class="hero-value num">${fmt(inv.total)}</div>
         <div class="hero-meta">
           <span class="tag ${st.cls}">${st.label}</span>
-          ${prev && inv.status !== 'aberta' ? deltaChip(inv.total, prev.total, false) : ''}
           <span>${st.hint}</span>
+          ${prev && inv.status !== 'aberta' ? deltaChip(inv.total, prev.total, false) + '<span>vs. fatura anterior</span>' : ''}
         </div>
       </div>
       <div class="hero-meta">${ICONS.calendar}Compras de ${shortDate(inv.start)} a ${shortDate(inv.end)}</div>
