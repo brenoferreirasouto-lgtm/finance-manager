@@ -869,24 +869,35 @@ function nextInvoiceDate(dateISO, invoiceDay) {
   return cand;
 }
 
-// data em que o lançamento afeta o saldo da conta
+// vencimento da fatura que fecha em closeISO (dia dueDay do mês; se dueDay < fechamento, vence no mês seguinte)
+function dueDateOf(closeISO, closeDay, dueDay) {
+  let [y, m] = closeISO.split('-').map(Number);
+  if (dueDay < closeDay) { m++; if (m > 12) { m = 1; y++; } }
+  return clampDate(y, m, dueDay);
+}
+
+// data em que o lançamento afeta o saldo da conta (crédito: vencimento da fatura)
 function chargeDateOf(t) {
   if (t.type === 'expense' && t.method === 'credit') {
     const a = accById(t.accountId);
-    if (a && a.invoiceDay) return nextInvoiceDate(t.date, a.invoiceDay);
+    if (a && a.invoiceDay) {
+      const close = nextInvoiceDate(t.date, a.invoiceDay);
+      return a.dueDay ? dueDateOf(close, a.invoiceDay, a.dueDay) : close;
+    }
   }
   return t.date;
 }
 
-// fatura aberta de uma conta: compras no crédito que caem na próxima data de fatura
+// fatura aberta de uma conta: compras que entram na próxima fatura a fechar
 function openInvoiceInfo(a) {
   if (!a.invoiceDay) return null;
-  const date = nextInvoiceDate(todayISO(), a.invoiceDay);
+  const close = nextInvoiceDate(todayISO(), a.invoiceDay);
+  const due = a.dueDay ? dueDateOf(close, a.invoiceDay, a.dueDay) : close;
   let total = 0;
   for (const t of db.transactions) {
-    if (t.type === 'expense' && t.method === 'credit' && t.accountId === a.id && chargeDateOf(t) === date) total += t.amount;
+    if (t.type === 'expense' && t.method === 'credit' && t.accountId === a.id && chargeDateOf(t) === due) total += t.amount;
   }
-  return { date, total };
+  return { date: due, close, total };
 }
 
 // total no crédito ainda não descontado (todas as contas)
@@ -1609,7 +1620,7 @@ function renderContas() {
       <span class="acct-name">${esc(a.name)}</span>
       <span class="acct-type">${T.label}</span>
       <span class="acct-bal num${bal < 0 ? ' neg' : ''}">${bal < 0 ? '−' : ''}${fmt(Math.abs(bal))}</span>
-      ${inv ? `<span class="acct-inv num">Fatura ${shortDate(inv.date)} · <b>${fmt(inv.total)}</b></span>` : ''}
+      ${inv ? `<span class="acct-inv num">Vence ${shortDate(inv.date)} · <b>${fmt(inv.total)}</b></span>` : ''}
     </button>`;
   }).join('');
 
@@ -1618,7 +1629,7 @@ function renderContas() {
       <div class="summary-main">
         <div class="hero-label">Patrimônio total</div>
         <div class="hero-value num">${total < 0 ? '−' : ''}${fmt(Math.abs(total))}</div>
-        <div class="hero-meta">${n} ${n === 1 ? 'conta' : 'contas'} · compras no crédito descontam no dia da fatura</div>
+        <div class="hero-meta">${n} ${n === 1 ? 'conta' : 'contas'} · compras no crédito descontam no vencimento</div>
       </div>
     </div>
     <div class="section">
@@ -1991,8 +2002,10 @@ function openTxModal(tx) {
       const payHint = () => {
         if (m.method !== 'credit') return '';
         const a2 = accById(m.accountId);
-        if (!a2 || !a2.invoiceDay) return 'Defina o dia da fatura desta conta (em Contas) para usar o crédito.';
-        return `Entra na fatura de ${shortDate(nextInvoiceDate(m.date, a2.invoiceDay))} — desconta do saldo só nesse dia.`;
+        if (!a2 || !a2.invoiceDay) return 'Defina o fechamento da fatura desta conta (em Contas) para usar o crédito.';
+        const close = nextInvoiceDate(m.date, a2.invoiceDay);
+        if (!a2.dueDay) return `Entra na fatura de ${shortDate(close)} — desconta do saldo nesse dia.`;
+        return `Entra na fatura que fecha em ${shortDate(close)} e vence em ${shortDate(dueDateOf(close, a2.invoiceDay, a2.dueDay))} — sai do saldo no vencimento.`;
       };
       const refreshPay = () => { syncInputs(); el('pay-hint').textContent = payHint(); };
       payBox.querySelectorAll('.seg-btn').forEach(b => b.addEventListener('click', () => {
@@ -2016,7 +2029,7 @@ function openTxModal(tx) {
       } else if (!m.categoryId) { toast('Escolha uma categoria', 'err'); return; }
       if (m.type === 'expense' && m.method === 'credit') {
         const a2 = accById(m.accountId);
-        if (!a2 || !a2.invoiceDay) { toast('Defina o dia da fatura desta conta para usar o crédito', 'err'); return; }
+        if (!a2 || !a2.invoiceDay) { toast('Defina o fechamento da fatura desta conta para usar o crédito', 'err'); return; }
       }
 
       const obj = {
@@ -2057,7 +2070,9 @@ function openTxModal(tx) {
 function openAccountModal(a) {
   const box = el('mbox-account');
   const dayOpts = ['<option value="">Não uso crédito</option>'];
-  for (let d = 1; d <= 31; d++) dayOpts.push(`<option value="${d}"${a && a.invoiceDay === d ? ' selected' : ''}>Dia ${d}</option>`);
+  for (let d = 1; d <= 31; d++) dayOpts.push(`<option value="${d}"${a && a.invoiceDay === d ? ' selected' : ''}>Fecha dia ${d}</option>`);
+  const dueOpts = ['<option value="">Vencimento = fechamento</option>'];
+  for (let d = 1; d <= 31; d++) dueOpts.push(`<option value="${d}"${a && a.dueDay === d ? ' selected' : ''}>Vence dia ${d}</option>`);
   const inv = a ? openInvoiceInfo(a) : null;
 
   box.innerHTML = mHead(a ? 'Editar conta' : 'Nova conta') + `
@@ -2071,10 +2086,13 @@ function openAccountModal(a) {
       <div class="f-group"><label class="f-label" for="ac-init">Saldo inicial</label>
         <input class="input num" id="ac-init" inputmode="numeric" placeholder="R$ 0,00"></div>
     </div>
-    <div class="f-group"><label class="f-label" for="ac-invday">Fatura do cartão de crédito</label>
-      <select class="select" id="ac-invday">${dayOpts.join('')}</select>
-      <div class="f-hint">Compras no crédito só descontam do saldo nesse dia do mês.</div></div>
-    ${a ? `<div class="f-info num">Saldo atual: <b>${fmt(accountBalance(a, todayISO()))}</b>${inv ? ` · Fatura de ${shortDate(inv.date)}: <b>${fmt(inv.total)}</b>` : ''}</div>`
+    <div class="f-group"><label class="f-label">Cartão de crédito</label>
+      <div class="f-row">
+        <select class="select" id="ac-invday" aria-label="Dia de fechamento">${dayOpts.join('')}</select>
+        <select class="select" id="ac-dueday" aria-label="Dia de vencimento">${dueOpts.join('')}</select>
+      </div>
+      <div class="f-hint"><b>Fechamento</b>: em qual fatura a compra entra — compras após o fechamento vão para a próxima. <b>Vencimento</b>: quando o valor sai do saldo (deixe em branco se sai no mesmo dia).</div></div>
+    ${a ? `<div class="f-info num">Saldo atual: <b>${fmt(accountBalance(a, todayISO()))}</b>${inv ? ` · Fatura aberta: <b>${fmt(inv.total)}</b> (vence ${shortDate(inv.date)})` : ''}</div>`
         : `<div class="f-hint">O saldo inicial é o ponto de partida da conta; os lançamentos somam a partir dele.</div>`}
   </div>
   <div class="m-foot">
@@ -2090,10 +2108,11 @@ function openAccountModal(a) {
     const type = el('ac-type').value;
     const name = el('ac-name').value.trim() || ACCOUNT_TYPES[type].label;
     const invoiceDay = el('ac-invday').value ? parseInt(el('ac-invday').value, 10) : null;
+    const dueDay = (invoiceDay && el('ac-dueday').value) ? parseInt(el('ac-dueday').value, 10) : null;
     if (a) {
-      Object.assign(a, { name, type, icon: ACCOUNT_TYPES[type].icon, initial: money.get(), invoiceDay });
+      Object.assign(a, { name, type, icon: ACCOUNT_TYPES[type].icon, initial: money.get(), invoiceDay, dueDay });
     } else {
-      db.accounts.push({ id: uid(), name, type, icon: ACCOUNT_TYPES[type].icon, initial: money.get(), invoiceDay, createdAt: Date.now() });
+      db.accounts.push({ id: uid(), name, type, icon: ACCOUNT_TYPES[type].icon, initial: money.get(), invoiceDay, dueDay, createdAt: Date.now() });
     }
     save();
     closeOverlay('modal-account');
@@ -2241,7 +2260,7 @@ function openRecurringModal(r) {
       if (m.endDate && m.endDate < m.startDate) { toast('O fim precisa ser depois do início', 'err'); return; }
       if (m.type === 'expense' && m.method === 'credit') {
         const a2 = accById(m.accountId);
-        if (!a2 || !a2.invoiceDay) { toast('Defina o dia da fatura desta conta para usar o crédito', 'err'); return; }
+        if (!a2 || !a2.invoiceDay) { toast('Defina o fechamento da fatura desta conta para usar o crédito', 'err'); return; }
       }
       const obj = {
         type: m.type, amount: m.amount, desc: m.desc.trim(),
