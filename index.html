@@ -418,6 +418,83 @@ input:focus-visible,select:focus-visible,textarea:focus-visible{outline:none}
 }
 .login-err[hidden]{display:none}
 
+/* ================= seletor de categorias ================= */
+/* controle fechado — ocupa o mesmo espaço do .select que substituiu */
+.catpick{
+  display:flex;align-items:center;gap:9px;flex:1 1 190px;min-width:0;
+  height:38px;padding:0 11px;text-align:left;
+  border:1px solid var(--border);border-radius:var(--r-sm);
+  background:var(--surface-soft);color:var(--text);
+  font-family:inherit;font-size:13.5px;font-weight:520;
+  transition:border-color .15s,background .15s;
+}
+.catpick:hover{border-color:var(--border-strong)}
+.catpick[aria-expanded="true"],.catpick.on{border-color:var(--accent)}
+.catpick-ic{display:grid;place-items:center;width:22px;height:22px;flex:none;color:var(--text-muted)}
+.catpick-ic svg{width:15px;height:15px}
+.catpick-emoji{font-size:15px;line-height:1}
+.catpick-label{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.catpick-chev{display:grid;place-items:center;flex:none;color:var(--text-muted);transition:transform .18s}
+.catpick-chev svg{width:14px;height:14px}
+.catpick[aria-expanded="true"] .catpick-chev{transform:rotate(180deg)}
+
+/* popover — vive no <body> com position:fixed, porque .lanc tem overflow:hidden */
+.catpop{
+  position:fixed;z-index:60;overflow-y:auto;overscroll-behavior:contain;
+  background:var(--surface);border:1px solid var(--border);border-radius:14px;
+  box-shadow:var(--shadow-pop);padding:10px;
+  animation:catpopIn .14s ease-out;
+}
+@keyframes catpopIn{from{opacity:0;transform:translateY(-4px)}}
+.catpop.up{animation:catpopUp .14s ease-out}
+@keyframes catpopUp{from{opacity:0;transform:translateY(4px)}}
+.catpop-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.catpop-grid.one{grid-template-columns:1fr}
+.catpop-group{
+  font-size:11.5px;font-weight:600;color:var(--text-muted);
+  padding:14px 4px 7px;margin:0;letter-spacing:.01em;
+}
+
+/* card de categoria */
+.catcard{
+  display:flex;align-items:center;gap:10px;width:100%;min-height:48px;
+  padding:7px 9px;text-align:left;
+  border:1px solid var(--border-soft);border-radius:11px;
+  background:var(--surface-raised);color:var(--text);
+  font-family:inherit;font-size:13.5px;font-weight:540;
+  transition:background .13s,border-color .13s,transform .13s;
+}
+.catcard:hover{background:var(--surface-soft);border-color:var(--border-strong);transform:translateY(-1px)}
+.catcard:focus-visible{outline:2px solid var(--accent-line);outline-offset:2px}
+.catcard-ic{
+  width:32px;height:32px;border-radius:9px;flex:none;
+  display:grid;place-items:center;font-size:16px;line-height:1;
+  background:var(--surface-soft);border:1px solid var(--border-soft);
+  position:relative;color:var(--text-muted);
+}
+.catcard-ic svg{width:15px;height:15px}
+/* cor da categoria como ponto discreto, não como fundo do ícone */
+.catcard-ic[style*="--cd"]::after{
+  content:"";position:absolute;right:-2px;bottom:-2px;width:8px;height:8px;
+  border-radius:50%;background:var(--cd);border:2px solid var(--surface-raised);
+}
+.catcard-name{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.catcard-check{display:none;flex:none;color:var(--accent);width:16px;height:16px}
+.catcard-check svg{width:16px;height:16px}
+/* selecionado: fundo + borda + check (nunca só a cor) */
+.catcard.sel{background:var(--accent-soft);border-color:var(--accent);color:var(--text)}
+.catcard.sel .catcard-name{font-weight:620}
+.catcard.sel .catcard-check{display:grid;place-items:center}
+.catcard.sel .catcard-ic{border-color:var(--accent-strong)}
+.catcard.sel .catcard-ic::after{border-color:var(--accent-soft)}
+.catcard[aria-disabled="true"]{opacity:.45;cursor:not-allowed;pointer-events:none}
+
+@media (max-width:760px){
+  .catpop{padding:9px}
+  .catpop-grid{grid-template-columns:1fr}
+  .catcard{min-height:44px}
+}
+
 /* ================= lançamentos ================= */
 .lanc{overflow:hidden}
 .lanc-head{
@@ -1179,7 +1256,9 @@ const ICONS = {
   info: I('<circle cx="12" cy="12" r="9"/><path d="M12 11v5"/><path d="M12 8h.01"/>'),
   chart: I('<path d="M3 3v16a2 2 0 0 0 2 2h16"/><path d="M7 15l3.5-4 3 2.5L18 8"/>'),
   more: I('<circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/>'),
-  filter: I('<path d="M3 5h18"/><path d="M7 12h10"/><path d="M11 19h2"/>')
+  filter: I('<path d="M3 5h18"/><path d="M7 12h10"/><path d="M11 19h2"/>'),
+  chevD: I('<path d="m6 9 6 6 6-6"/>', 2.2),
+  grid: I('<rect x="3" y="3" width="7" height="7" rx="1.6"/><rect x="14" y="3" width="7" height="7" rx="1.6"/><rect x="3" y="14" width="7" height="7" rx="1.6"/><rect x="14" y="14" width="7" height="7" rx="1.6"/>')
 };
 
 /* ---------- navegação: 4 destinos, abas internas onde faz sentido ----------
@@ -2689,15 +2768,214 @@ function renderRelatorios() {
    ============================================================ */
 const norm = s => String(s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
 
+/* ============================================================
+   Seletor de categorias (combobox acessível)
+   Só a camada visual/interação — o filtro continua sendo
+   state.txf.cat, aplicado em renderTxList().
+   ============================================================ */
+const CAT_FALLBACK_EMOJI = '\u{1F3F7}️'; // 🏷️
+
+/* resolve o emoji só para exibição. Categorias antigas sem `icon` recebem o
+   fallback em tempo de render — o valor salvo NÃO é alterado nem sobrescrito. */
+function catEmoji(c) {
+  const e = c && typeof c.icon === 'string' ? c.icon.trim() : '';
+  return e || CAT_FALLBACK_EMOJI;
+}
+
+/* controle fechado: ocupa o mesmo espaço do <select> que substituiu.
+   Nome com prefixo catFilter* para não colidir com o catPickerHTML()
+   do modal de transação, que é outro componente. */
+function catFilterHTML() {
+  return `<button type="button" class="catpick" id="txf-cat"
+      aria-haspopup="listbox" aria-expanded="false" aria-controls="txf-cat-pop"
+      aria-label="Filtrar por categoria">
+    <span class="catpick-ic" id="txf-cat-ic"></span>
+    <span class="catpick-label" id="txf-cat-label"></span>
+    <span class="catpick-chev">${ICONS.chevD}</span>
+  </button>`;
+}
+
+const catPicker = { pop: null, btn: null, opts: [], idx: -1, onPick: null, wired: false };
+
+function catPickerSync() {
+  const btn = el('txf-cat');
+  if (!btn) return;
+  const c = state.txf.cat !== 'all' ? catById(state.txf.cat) : null;
+  el('txf-cat-ic').innerHTML = c ? `<span class="catpick-emoji">${catEmoji(c)}</span>` : ICONS.grid;
+  el('txf-cat-label').textContent = c ? c.name : 'Todas as categorias';
+  btn.classList.toggle('on', !!c);
+}
+
+function catCardHTML(id, emoji, nome, sel, cor) {
+  return `<button type="button" class="catcard${sel ? ' sel' : ''}" role="option"
+      aria-selected="${sel}" data-cat="${id}" tabindex="-1">
+    <span class="catcard-ic"${cor ? ` style="--cd:${cor}"` : ''}>${emoji}</span>
+    <span class="catcard-name">${esc(nome)}</span>
+    <span class="catcard-check" aria-hidden="true">${ICONS.check}</span>
+  </button>`;
+}
+
+function openCatPicker() {
+  closeCatPicker();
+  const btn = el('txf-cat');
+  if (!btn) return;
+
+  const grupo = tipo => {
+    const cs = db.categories.filter(c => c.type === tipo);
+    if (!cs.length) return '';
+    return `<p class="catpop-group" id="catpop-${tipo}">${tipo === 'expense' ? 'Despesas' : 'Receitas'}</p>
+      <div class="catpop-grid" role="group" aria-labelledby="catpop-${tipo}">${
+        cs.map(c => catCardHTML(c.id, catEmoji(c), c.name, state.txf.cat === c.id, c.color)).join('')}</div>`;
+  };
+
+  const pop = document.createElement('div');
+  pop.className = 'catpop';
+  pop.id = 'txf-cat-pop';
+  pop.setAttribute('role', 'listbox');
+  pop.setAttribute('aria-label', 'Categorias');
+  pop.tabIndex = -1;
+  pop.innerHTML =
+    `<div class="catpop-grid one">${catCardHTML('all', ICONS.grid, 'Todas as categorias', state.txf.cat === 'all', '')}</div>` +
+    grupo('expense') + grupo('income');
+
+  document.body.appendChild(pop);
+  catPicker.pop = pop;
+  catPicker.btn = btn;
+  catPicker.opts = [...pop.querySelectorAll('[data-cat]')];
+  btn.setAttribute('aria-expanded', 'true');
+
+  placeCatPicker();
+
+  // foco inicial na opção selecionada
+  catPicker.idx = Math.max(0, catPicker.opts.findIndex(o => o.dataset.cat === state.txf.cat));
+  focusCatOpt(catPicker.idx);
+
+  pop.addEventListener('click', e => {
+    const o = e.target.closest('[data-cat]');
+    if (!o) return;
+    pickCat(o.dataset.cat);
+  });
+  pop.addEventListener('keydown', catPickerKeys);
+  // listeners globais são adicionados aqui e removidos em closeCatPicker(),
+  // então abrir/fechar repetidamente não duplica handlers
+  document.addEventListener('mousedown', catPickerOutside, true);
+  window.addEventListener('resize', placeCatPicker);
+  window.addEventListener('scroll', placeCatPicker, true);
+}
+
+function placeCatPicker() {
+  const pop = catPicker.pop, btn = catPicker.btn;
+  if (!pop || !btn) return;
+  const r = btn.getBoundingClientRect();
+  const M = 12, vw = window.innerWidth, vh = window.innerHeight;
+  // barra inferior no mobile: o popover não pode ficar escondido atrás dela
+  const rodape = getComputedStyle(el('bottom-nav')).display !== 'none' ? 88 : M;
+
+  const larg = Math.min(Math.max(r.width, 340), vw - M * 2);
+  pop.style.width = larg + 'px';
+
+  const abaixo = vh - r.bottom - rodape - 8;
+  const acima = r.top - M - 8;
+  const paraCima = abaixo < 220 && acima > abaixo;
+  pop.style.maxHeight = Math.max(160, Math.min(420, paraCima ? acima : abaixo)) + 'px';
+
+  const h = pop.offsetHeight;
+  let left = Math.min(Math.max(M, r.left), vw - larg - M);
+  let top = paraCima ? Math.max(M, r.top - h - 6) : r.bottom + 6;
+  pop.style.left = left + 'px';
+  pop.style.top = top + 'px';
+  pop.classList.toggle('up', paraCima);
+}
+
+function focusCatOpt(i) {
+  const o = catPicker.opts[i];
+  if (!o) return;
+  catPicker.idx = i;
+  o.tabIndex = 0;
+  catPicker.opts.forEach((x, k) => { if (k !== i) x.tabIndex = -1; });
+  try { o.focus({ preventScroll: true }); } catch (e) {}
+  o.scrollIntoView({ block: 'nearest' });
+}
+
+function catPickerKeys(e) {
+  const n = catPicker.opts.length;
+  if (!n) return;
+  const k = e.key;
+  if (k === 'Escape') { e.preventDefault(); closeCatPicker(true); return; }
+  if (k === 'Enter' || k === ' ' || k === 'Spacebar') {
+    e.preventDefault();
+    const o = catPicker.opts[catPicker.idx];
+    if (o) pickCat(o.dataset.cat);
+    return;
+  }
+  let i = catPicker.idx;
+  if (k === 'ArrowDown') i = (i + 1) % n;
+  else if (k === 'ArrowUp') i = (i - 1 + n) % n;
+  else if (k === 'Home') i = 0;
+  else if (k === 'End') i = n - 1;
+  else if (k === 'Tab') { closeCatPicker(); return; }
+  else return;
+  e.preventDefault();
+  focusCatOpt(i);
+}
+
+function catPickerOutside(e) {
+  if (!catPicker.pop) return;
+  if (catPicker.pop.contains(e.target) || (catPicker.btn && catPicker.btn.contains(e.target))) return;
+  closeCatPicker();
+}
+
+function pickCat(id) {
+  state.txf.cat = id;
+  closeCatPicker(true);
+  catPickerSync();
+  if (catPicker.onPick) catPicker.onPick();
+}
+
+/* remove o popover do DOM e desliga os listeners globais.
+   Chamado também no início de renderTransacoes(), para que um re-render
+   nunca deixe popover órfão. */
+function closeCatPicker(devolveFoco) {
+  document.removeEventListener('mousedown', catPickerOutside, true);
+  window.removeEventListener('resize', placeCatPicker);
+  window.removeEventListener('scroll', placeCatPicker, true);
+  // varre por id: pega também popovers de renders anteriores
+  document.querySelectorAll('.catpop').forEach(p => p.remove());
+  catPicker.pop = null;
+  catPicker.opts = [];
+  catPicker.idx = -1;
+  const btn = el('txf-cat');
+  if (btn) {
+    btn.setAttribute('aria-expanded', 'false');
+    if (devolveFoco) { try { btn.focus({ preventScroll: true }); } catch (e) {} }
+  }
+  catPicker.btn = null;
+}
+
+function bindCatFilter(onPick) {
+  const btn = el('txf-cat');
+  if (!btn) return;
+  catPicker.onPick = onPick;
+  catPickerSync();
+  btn.addEventListener('click', () => {
+    if (catPicker.pop) closeCatPicker(true); else openCatPicker();
+  });
+  btn.addEventListener('keydown', e => {
+    if (e.key === 'ArrowDown' || e.key === 'Enter' || e.key === ' ' || e.key === 'Spacebar') {
+      e.preventDefault();
+      if (!catPicker.pop) openCatPicker();
+    }
+  });
+}
+
 function renderTransacoes() {
   const root = el('page-transacoes');
   parkMonthNav();
+  closeCatPicker(); // um re-render não pode deixar popover órfão no body
   const s = statsFor(state.month);
   const saldo = s.inc - s.exp;
   const f = state.txf;
 
-  const catOpts = type => db.categories.filter(c => c.type === type)
-    .map(c => `<option value="${c.id}">${esc(c.name)}</option>`).join('');
   const accOpts = db.accounts.map(a => `<option value="${a.id}">${esc(a.name)}</option>`).join('');
 
   root.innerHTML = `
@@ -2730,12 +3008,7 @@ function renderTransacoes() {
             <button class="seg-btn t-exp" data-v="expense">Despesas</button>
             <button class="seg-btn" data-v="transfer">Transferências</button>
           </div>
-          <label class="sr-only" for="txf-cat">Categoria</label>
-          <select class="select" id="txf-cat">
-            <option value="all">Todas as categorias</option>
-            <optgroup label="Despesas">${catOpts('expense')}</optgroup>
-            <optgroup label="Receitas">${catOpts('income')}</optgroup>
-          </select>
+          ${catFilterHTML()}
           <label class="sr-only" for="txf-acc">Conta</label>
           <select class="select" id="txf-acc">
             <option value="all">Todas as contas</option>
@@ -2766,8 +3039,9 @@ function renderTransacoes() {
   });
   syncSeg();
 
-  const selCat = el('txf-cat'), selAcc = el('txf-acc'), inQ = el('txf-q');
-  selCat.value = state.txf.cat; if (!selCat.value) { selCat.value = 'all'; state.txf.cat = 'all'; }
+  const selAcc = el('txf-acc'), inQ = el('txf-q');
+  // categoria que não existe mais (excluída) volta a "todas"
+  if (state.txf.cat !== 'all' && !catById(state.txf.cat)) state.txf.cat = 'all';
   selAcc.value = state.txf.acc; if (!selAcc.value) { selAcc.value = 'all'; state.txf.acc = 'all'; }
   inQ.value = state.txf.q;
 
@@ -2788,7 +3062,7 @@ function renderTransacoes() {
       const k = b.dataset.clear;
       state.txf[k] = k === 'q' ? '' : 'all';
       if (k === 'q') inQ.value = '';
-      if (k === 'cat') selCat.value = 'all';
+      if (k === 'cat') catPickerSync();
       if (k === 'acc') selAcc.value = 'all';
       syncSeg(); syncChips(); renderTxList();
     }));
@@ -2804,7 +3078,7 @@ function renderTransacoes() {
   segBtns.forEach(b => b.addEventListener('click', () => {
     state.txf.type = b.dataset.v; syncSeg(); syncChips(); renderTxList();
   }));
-  selCat.addEventListener('change', () => { state.txf.cat = selCat.value; syncChips(); renderTxList(); });
+  bindCatFilter(() => { syncChips(); renderTxList(); });
   selAcc.addEventListener('change', () => { state.txf.acc = selAcc.value; syncChips(); renderTxList(); });
   inQ.addEventListener('input', () => { state.txf.q = inQ.value; syncChips(); renderTxList(); });
 
