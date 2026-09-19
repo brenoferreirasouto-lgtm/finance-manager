@@ -856,6 +856,10 @@ body.no-period .pagehead-period{display:none}
 .donut.focando .donut-leg{opacity:.45}
 .donut.focando .donut-leg.on{opacity:1;background:var(--hover)}
 .donut-dot{width:9px;height:9px;border-radius:var(--r-full);flex:none}
+/* agrupamento: anel vazado e rótulo discreto — lê como "balde", não como categoria */
+.donut-dot.grupo{background:transparent;box-shadow:inset 0 0 0 2px var(--steel)}
+.donut-leg.grupo .donut-name{color:var(--text-muted)}
+.donut{position:relative}
 .donut-name{flex:1;min-width:0;font-size:var(--body-sm);color:var(--text-secondary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .donut-val{font-size:var(--body-sm);font-weight:var(--w-semibold);color:var(--text);flex:none}
 
@@ -915,6 +919,10 @@ body.no-period .pagehead-period{display:none}
 /* o tooltip é escuro nos dois temas, então usa os tons semânticos do dark —
    o verde/vermelho do tema claro são escuros e sumiriam aqui */
 .bars-tip{--positive:#4bd68b;--negative:#ff6b78}
+/* o tooltip do donut reaproveita o visual do das barras, mas é ancorado por JS */
+.donut-tip{bottom:auto;z-index:6}
+.donut-tip .bars-tip-r i{border-radius:var(--r-full)}
+.donut-tip .bars-tip-r.mais span{color:#93A5B8;font-style:italic}
 
 /* linha de lançamento *//* linha de lançamento */
 .txrows{display:flex;flex-direction:column}
@@ -2283,17 +2291,21 @@ function donutHTML(slices, o) {
       stroke="${sl.color || 'var(--sky)'}" stroke-width="${th}"
       stroke-dasharray="${(dash - 2).toFixed(2)} ${(c - dash + 2).toFixed(2)}"
       stroke-dashoffset="${(-acc * c).toFixed(2)}" stroke-linecap="round"
-      ><title>${esc(sl.label)}: ${esc(sl.display || '')} (${Math.round(frac * 100)}%)</title></circle>`;
+      ><title>${esc(sl.label)}${sl.grupo ? ' (' + esc(sl.grupo.map(g => g.label).join(', ')) + ')' : ''}: ${esc(sl.display || '')} (${Math.round(frac * 100)}%)</title></circle>`;
     acc += frac;
     return el;
   }).join('');
-  const legenda = slices.map((sl, i) => `<button type="button" class="donut-leg" data-i="${i}">
-    <span class="donut-dot" style="background:${sl.color || 'var(--sky)'}"></span>
+  const legenda = slices.map((sl, i) => `<button type="button" class="donut-leg${sl.grupo ? ' grupo' : ''}" data-i="${i}"${
+      sl.grupo ? ` aria-label="${esc(sl.label)}: ${esc(sl.grupo.map(g => g.label + ' ' + g.display).join(', '))}. Total ${esc(sl.display)}"` : ''}>
+    ${sl.grupo
+      ? '<span class="donut-dot grupo" aria-hidden="true"></span>'   /* anel vazado: é um agrupamento, não uma categoria */
+      : `<span class="donut-dot" style="background:${sl.color || 'var(--sky)'}"></span>`}
     <span class="donut-name">${esc(sl.label)}</span>
     <span class="donut-val num">${sl.display || Math.round((sl.value || 0) / total * 100) + '%'}</span>
   </button>`).join('');
   const dados = slices.map(sl => ({
-    l: sl.label, v: sl.display || '', p: Math.round((sl.value || 0) / total * 100)
+    l: sl.label, v: sl.display || '', vc: fmtCompact(sl.value), p: Math.round((sl.value || 0) / total * 100),
+    g: sl.grupo ? sl.grupo.map(x => ({ l: x.label, v: x.display, c: x.color })) : null
   }));
   return `<div class="donut" data-donut='${esc(JSON.stringify(dados))}'>
     <div class="donut-ring" style="width:${size}px;height:${size}px;--inner:${size - th * 2}px">
@@ -2307,6 +2319,7 @@ function donutHTML(slices, o) {
       </div></div>
     </div>
     ${o.legend === false ? '' : `<div class="donut-legend">${legenda}</div>`}
+    <div class="bars-tip donut-tip" role="tooltip" hidden></div>
   </div>`;
 }
 
@@ -2325,10 +2338,47 @@ function bindDonut(root) {
       centro.innerHTML = `<div class="donut-c-label alvo">${esc(x.l)}</div>`
         + `<div class="donut-c-value num">${esc(x.v)}</div>`
         + `<div class="donut-c-pct">${x.p}% do total</div>`;
+      // o círculo interno tem ~114px: "R$ 15.775,12" não cabe no tamanho cheio
+      // scrollWidth é arredondado: 106,4px de texto numa caixa de 106px passa no teste
+      // e mesmo assim ganha reticências. Mede-se a largura real do texto.
+      const val = centro.querySelector('.donut-c-value');
+      const larg = () => { const r = document.createRange(); r.selectNodeContents(val); return r.getBoundingClientRect().width; };
+      const cabe = () => larg() <= val.clientWidth - 1;
+      let px = parseFloat(getComputedStyle(val).fontSize);
+      while (!cabe() && px > 14) { px -= 1; val.style.fontSize = px + 'px'; }
+      if (!cabe()) { val.style.fontSize = ''; val.textContent = x.vc; }
       d.querySelectorAll('[data-i]').forEach(e => e.classList.toggle('on', +e.dataset.i === i));
       d.classList.add('focando');
+      if (x.g) mostrarGrupo(i, x); else if (tip) tip.hidden = true;
+    };
+    // o grupo lista o que contém, ancorado acima da própria linha da legenda
+    const tip = d.querySelector('.donut-tip');
+    const MAX = 6;
+    const mostrarGrupo = (i, x) => {
+      if (!tip) return;
+      const vis = x.g.slice(0, MAX), resto = x.g.length - vis.length;
+      tip.innerHTML = `<div class="bars-tip-m">${esc(x.l)}</div>` +
+        vis.map(g => `<div class="bars-tip-r"><i style="background:${g.c}"></i><span>${esc(g.l)}</span><b class="num">${esc(g.v)}</b></div>`).join('') +
+        (resto > 0 ? `<div class="bars-tip-r mais"><span>e mais ${resto}</span></div>` : '') +
+        `<div class="bars-tip-r res"><span>Total</span><b class="num">${esc(x.v)}</b></div>`;
+      tip.hidden = false;
+      const linha = d.querySelector(`.donut-leg[data-i="${i}"]`);
+      const leg = d.querySelector('.donut-legend');
+      if (!linha || !leg) return;
+      tip.style.left = leg.offsetLeft + 'px';
+      tip.style.width = Math.min(leg.offsetWidth, 260) + 'px';
+      tip.style.top = (linha.offsetTop + linha.offsetHeight + 6) + 'px';
+      const nav = el('bottom-nav');
+      const piso = innerHeight - (nav && getComputedStyle(nav).display !== 'none' ? nav.offsetHeight + 8 : 8);
+      if (tip.getBoundingClientRect().bottom > piso) tip.style.top = (linha.offsetTop - tip.offsetHeight - 6) + 'px';
+      // a linha âncora pode estar sob a barra inferior (toque na fatia com a legenda
+      // fora da tela): nesse caso a lista é empurrada para dentro da área útil
+      let r = tip.getBoundingClientRect();
+      if (r.bottom > piso) { tip.style.top = (parseFloat(tip.style.top) - (r.bottom - piso)) + 'px'; r = tip.getBoundingClientRect(); }
+      if (r.top < 8) tip.style.top = (parseFloat(tip.style.top) + (8 - r.top)) + 'px';
     };
     const limpar = () => {
+      if (tip) tip.hidden = true;
       centro.innerHTML = original;
       d.querySelectorAll('[data-i]').forEach(e => e.classList.remove('on'));
       d.classList.remove('focando');
@@ -2904,12 +2954,21 @@ function renderDashboard() {
   /* --- despesas por categoria --- */
   const ranked = Object.entries(s.byCat).sort((a, b) => b[1] - a[1]);
   const TOP = 5;
-  const slices = ranked.slice(0, TOP).map(([id, v]) => {
+  // Agrupar só compensa a partir de duas categorias: se sobrar uma além das
+  // 5 maiores, ela aparece pelo nome. O grupo leva a lista do que contém,
+  // e o rótulo traz a contagem para não colidir com a categoria "Outros".
+  const agrupa = ranked.length > TOP + 1;
+  const paraFatia = ([id, v]) => {
     const c = catById(id) || { name: 'Sem categoria', color: 'var(--steel)' };
     return { label: c.name, value: v, color: c.color, display: fmt(v) };
-  });
-  const resto = ranked.slice(TOP).reduce((a, [, v]) => a + v, 0);
-  if (resto > 0) slices.push({ label: 'Outras', value: resto, color: 'var(--steel)', display: fmt(resto) });
+  };
+  const slices = (agrupa ? ranked.slice(0, TOP) : ranked).map(paraFatia);
+  if (agrupa) {
+    const grupo = ranked.slice(TOP).map(paraFatia);
+    const soma = grupo.reduce((a, x) => a + x.value, 0);
+    slices.push({ label: `+${grupo.length} categorias`, value: soma, color: 'var(--steel)',
+      display: fmt(soma), grupo });
+  }
 
   /* --- KPIs do mês --- */
   const kpis = [
@@ -2971,7 +3030,8 @@ function renderDashboard() {
     <div class="dash">
       <div class="dash-hero">
         ${panelHTML({ variant: 'glass', body: patrimonio, style: 'padding:22px' })}
-        ${panelHTML({ variant: 'quiet', title: 'Despesas por categoria', body: categorias })}
+        ${panelHTML({ variant: 'quiet', title: 'Despesas por categoria', body: categorias,
+          style: 'overflow:visible;position:relative;z-index:2' })}
       </div>
 
       <div class="metrics">${kpiCards}</div>
